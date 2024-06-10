@@ -9,7 +9,7 @@
         <name>SnREPL</name>
         <script><![CDATA[/**
  * This Script Include manages the remote REPL session that can be accessed via
- * the REST API /api/890366/send_command
+ * the REST API /api/890366/
  */
 var SnREPL = {
 
@@ -18,9 +18,14 @@ var SnREPL = {
 
     WORKER_TTL: 3600, // worker time-to-live in seconds
 
-    WORKER_MIN_DELAY: 100, // worker minimum delay in ms
+    WORKER_MIN_DELAY: 200, // worker minimum delay in ms
     WORKER_MAX_DELAY: 15000, // worker maximum delay in ms
-    WORKER_LAYOFF_DELAY: 1, // worker layoff delay in ms
+    WORKER_LAYOFF_DELAY: 10, // worker layoff delay in ms
+
+	CMD_TABLE: 'u_snrepl_command',
+	CMD_STATE: 'u_state',
+	CMD_COMMAND: 'u_command',
+	CMD_RESULT: 'u_result',
 
 
     /**
@@ -31,8 +36,8 @@ var SnREPL = {
      * @param {RESTAPIResponse} response The response 
      * @modifies response
      */
-    handleRequest: function(request, response) {
-        try {
+    postCommandRequest: function(request, response) {
+       // try {
             var command = request.body.data.command;
 	    gs.info('SnREPL: Processing command: ' + command);
 	    var result = SnREPL.processCommand(command);
@@ -41,11 +46,11 @@ var SnREPL = {
                 data: result
             };
             response.setBody(body);
-        } catch (error) {
+        /*} catch (error) {
             response.setStatus(500);
             var errorStr = SnREPL._serializeException(error);
             response.setBody(errorStr);
-        }
+        }*/
     },
 
 
@@ -61,10 +66,10 @@ var SnREPL = {
     processCommand: function(command) {
         var cid = -1;
 
-        var gr = new GlideRecord('u_repl_command');
+        var gr = new GlideRecord(SnREPL.CMD_TABLE);
         gr.newRecord();
-        gr.setValue('u_state', 'new');
-        gr.setValue('u_command', command);
+        gr.setValue(SnREPL.CMD_STATE, 'new');
+        gr.setValue(SnREPL.CMD_COMMAND, command);
         cid = gr.insert();
 
         if (!cid) {
@@ -75,13 +80,13 @@ var SnREPL = {
         var t = 0;
 
         while (t < SnREPL.COMMAND_TIMEOUT * 1000) {
-            gr = new GlideRecord('u_repl_command');
+            gr = new GlideRecord(SnREPL.CMD_TABLE);
             if (!gr.get(cid)) {
                 throw new Error('SnREPL: Could not get command ' + cid);
             }
 
-            var state = gr.getValue('u_state');
-            var response = gr.getValue('u_response');
+            var state = gr.getValue(SnREPL.CMD_STATE);
+            var response = gr.getValue(SnREPL.CMD_RESULT);
 
             if (state == 'done') {
                 break;
@@ -103,8 +108,8 @@ var SnREPL = {
      * @returns {string} JSON string of exception object
      */
     _serializeException: function(ex) {
-        const exObj = {};
-        Object.getOwnPropertyNames(ex).forEach((key) => {
+        var exObj = {};
+        Object.getOwnPropertyNames(ex).forEach(function(key) {
             exObj[key] = ex[key];
         });
         // rhinoException is a Java object, so we need to force string conversion
@@ -185,13 +190,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>0</sys_mod_count>
+        <sys_mod_count>9</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-09 19:09:20</sys_updated_on>
+        <sys_updated_on>2024-06-10 20:11:05</sys_updated_on>
     </sys_script_include>
 </record_update>
