@@ -13,24 +13,24 @@
  */
 var SnREPL = {
 
-    COMMAND_POLL_INTERVAL	: 250,		// polling interval in ms
-    COMMAND_TIMEOUT		: 120,		// timeout in seconds
+    COMMAND_POLL_INTERVAL : 250,          // polling interval in ms
+    COMMAND_TIMEOUT       : 15,           // timeout in seconds
 
-    WORKER_MIN_DELAY		: 200,		// worker minimum delay in ms
-    WORKER_MAX_DELAY		: 15000,	// worker maximum delay in ms
-    WORKER_LAYOFF_DELAY		: 10,		// worker layoff delay in ms
+    WORKER_MIN_DELAY      : 200,          // worker minimum delay in ms
+    WORKER_MAX_DELAY      : 15000,        // worker maximum delay in ms
+    WORKER_LAYOFF_DELAY   : 10,           // worker layoff delay in ms
 
     // Table and field names for the command queue
-    CMD_TABLE			: 'u_snrepl_command',
-    CMD_STATE			: 'u_state',
-    CMD_COMMAND			: 'u_command',
-    CMD_RESULT			: 'u_result',
-    CMD_SESSION			: 'u_session',
+    CMD_TABLE             : 'u_snrepl_command',
+    CMD_STATE             : 'u_state',
+    CMD_COMMAND           : 'u_command',
+    CMD_RESULT            : 'u_result',
+    CMD_SESSION           : 'u_session',
 
     // Table and field names for the session table, and session settings
-    SESSION_TABLE		: 'u_snrepl_session',
-    SESSION_STATE		: 'u_state',
-    SESSION_IDLE_TIMEOUT	: 15*60,	// 15 minutes
+    SESSION_TABLE         : 'u_snrepl_session',
+    SESSION_STATE         : 'u_state',
+    SESSION_IDLE_TIMEOUT  : 15*60,        // 15 minutes
 
 
     /**
@@ -41,20 +41,15 @@ var SnREPL = {
      * @modifies response
      */
     postCommand: function(request, response) {
-	// try {
         var command = request.body.data.command;
-	gs.info('SnREPL: Processing command: ' + command);
-	var result = SnREPL.processCommand(command);
-	gs.info('SnREPL: Command result: ' + result);
+        var session = request.body.data.session;
+        gs.info('SnREPL: Processing command: ' + command + ' in session ' + session);
+        var result = SnREPL.processCommand(command, session)
+        gs.info('SnREPL: Command result: ' + result);
         var body = {
             data: result
         };
         response.setBody(body);
-        /*} catch (error) {
-          response.setStatus(500);
-          var errorStr = SnREPL._serializeException(error);
-          response.setBody(errorStr);
-          }*/
     },
 
     /**
@@ -65,15 +60,37 @@ var SnREPL = {
      * @modifies response
      */
     postSession: function(request, response) {
-	gs.info('SnREPL: Creating new session');
-	var session = SnREPL.createSession();
-	response.setBody({
-	    data: session
-	});
-	gs.info('SnREPL: Created new session: ' + session.name);
+        gs.info('SnREPL: Creating new session');
+        var session = SnREPL.createSession();
+        response.setBody({
+            data: session
+        });
+        gs.info('SnREPL: Created new session: ' + session.name);
     },
 
 
+    /**
+     * Handles request to list all active sessions.
+     *
+     * @param {RESTAPIRequest} request The incoming request
+     * @param {RESTAPIResponse} response The response
+     * @modifies response
+     */
+    listSessions: function(request, response) {
+        var gr = new GlideRecord(SnREPL.SESSION_TABLE);
+        gr.query();
+        var sessions = [];
+        while (gr.next()) {
+            sessions.push({
+                id: gr.getUniqueValue(),
+                name: gr.getDisplayValue(),
+                state: gr.getValue(SnREPL.SESSION_STATE)
+            });
+        }
+        response.setBody({
+            data: sessions
+        });
+    },
 
 
     /**
@@ -83,15 +100,29 @@ var SnREPL = {
      * poll for the result until it is available.
      *
      * @param {string} command the command to process
+     * @param {string} session the session ID
      * @returns {any} the result of the command
      */
-    processCommand: function(command) {
+    processCommand: function(command, session) {
         var cid = -1;
+        var response;
 
+        // check if session exists and is live
+        var grSession = new GlideRecord(SnREPL.SESSION_TABLE);
+        if (!grSession.get(session)) {
+            throw new Error('SnREPL: Session ' + session + ' does not exist');
+        }
+
+        if (grSession.getValue(SnREPL.SESSION_STATE) != 'live') {
+            throw new Error('SnREPL: Session ' + session + ' is not active');
+        }
+
+        // create new command record
         var gr = new GlideRecord(SnREPL.CMD_TABLE);
         gr.newRecord();
         gr.setValue(SnREPL.CMD_STATE, 'new');
         gr.setValue(SnREPL.CMD_COMMAND, command);
+        gr.setValue(SnREPL.CMD_SESSION, session);
         cid = gr.insert();
 
         if (!cid) {
@@ -108,15 +139,23 @@ var SnREPL = {
             }
 
             var state = gr.getValue(SnREPL.CMD_STATE);
-            var response = gr.getValue(SnREPL.CMD_RESULT);
+            response = {
+                result: gr.getValue(SnREPL.CMD_RESULT)
+            };
 
             if (state == 'done') {
-                break;
+                return response; 
             }
 
             gs.sleep(SnREPL.COMMAND_POLL_INTERVAL);
             t = stopwatch.getTime();
         }
+
+        // return timeout message and command ID for result polling
+        response = {
+            result: 'timeout',
+            command: cid
+        };
 
         return response;
     },
@@ -127,17 +166,17 @@ var SnREPL = {
      * @returns {object} the session ID and name
      */
     createSession: function() {
-	var grSession = new GlideRecord(SnREPL.SESSION_TABLE);
-	grSession.newRecord();
-	var id;
-	id = grSession.insert();
-	if (!id) {
-	    throw new Error('SnREPL: Could not create new session');
-	}
-	return {
-	    id: id,
-	    name: grSession.getDisplayValue()
-	};
+        var grSession = new GlideRecord(SnREPL.SESSION_TABLE);
+        grSession.newRecord();
+        var id;
+        id = grSession.insert();
+        if (!id) {
+            throw new Error('SnREPL: Could not create new session');
+        }
+        return {
+            id: id,
+            name: grSession.getDisplayValue()
+        };
     },
 
 
@@ -164,10 +203,10 @@ var SnREPL = {
      * Starts up a new session process.
      */
     initSession: function(sessionGr) {
-	gs.info('SnREPL: Initializing session ' + sessionGr.getDisplayValue());
-	sessionGr.setValue(SnREPL.SESSION_STATE, 'live');
-	sessionGr.update();
-	SnREPL.watchCommands(sessionGr);
+        gs.info('SnREPL: Initializing session ' + sessionGr.getDisplayValue());
+        sessionGr.setValue(SnREPL.SESSION_STATE, 'live');
+        sessionGr.update();
+        SnREPL.watchCommands(sessionGr);
     },
 
     /**
@@ -181,89 +220,129 @@ var SnREPL = {
      * @param {GlideRecord} sessionGr the session record
      */
     watchCommands: function(sessionGr) {
-        var __sessionTimer = new GlideStopWatch();
-	var __inactiveTimer = new GlideStopWatch();
-	var __delay = SnREPL.WORKER_MIN_DELAY;
-	var __msgPrefix = 'SnREPL[' + sessionGr.getDisplayValue() + ']: ';
+        var sessionTimer = new GlideStopWatch();
+        var inactiveTimer = new GlideStopWatch();
+        var delay = SnREPL.WORKER_MIN_DELAY;
+        var msgPrefix = 'SnREPL[' + sessionGr.getDisplayValue() + ']: ';
 
-	// Intercept calls to gs.print, gs.info, gs.warn, gs.error
-	var __printLog = [];
-	gs.print = function(msg) {
-	    __printLog.push(msg);
-	};
+        // limited environment for command execution
+        var env = {
+            __printLog: [],
+            __msgPrefix: msgPrefix
+        };
 
-        while (__inactiveTimer.getTime() < SnREPL.SESSION_IDLE_TIMEOUT * 1000) {
-            var __gr = new GlideRecord(SnREPL.CMD_TABLE);
-            __gr.addQuery(SnREPL.CMD_SESSION, sessionGr.getUniqueValue());
-	    __gr.addQuery(SnREPL.CMD_STATE, 'new');
-	    __gr.orderBy('sys_created_on');
-            __gr.query();
+        while (inactiveTimer.getTime() < SnREPL.SESSION_IDLE_TIMEOUT * 1000) {
+            var gr = new GlideRecord(SnREPL.CMD_TABLE);
+            gr.addQuery(SnREPL.CMD_SESSION, sessionGr.getUniqueValue());
+            gr.addQuery(SnREPL.CMD_STATE, 'new');
+            gr.orderBy('sys_created_on');
+            gr.query();
 
-            if (__gr.next()) {
-		var __gse = new GlideScopedEvaluator();
+            if (gr.next()) {
+                var command = gr.getValue(SnREPL.CMD_COMMAND);
 
-                var __result;
-		var __output;
-		__printLog = [];
+                if (command.startsWith('\\')) {
+                    command = command.substring(1);
+                    gs.info(msgPrefix + 'Processing session command: ' + command);
 
-		var command = __gr.getValue(SnREPL.CMD_COMMAND);
-		if (command.startsWith('\\')) {
-		    command = command.substring(1);
-		    gs.info(__msgPrefix + 'Processing session command: ' + command);
+                    switch (command) {
+                    case 'exit':
+                        gs.info(msgPrefix + 'Session ' + sessionGr.getDisplayValue() + ' has been terminated.');
+                        sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
+                        sessionGr.update();
 
-		    switch (command) {
-		    case 'exit':
-			gs.info(__msgPrefix + 'Session ' + sessionGr.getDisplayValue() + ' has been terminated.');
-			sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
-			sessionGr.update();
-
-			__gr.setValue(SnREPL.CMD_RESULT, JSON.stringify({
-			    replMsg: 'Session terminated'
-			}));
-			    
-                __gr.setValue(SnREPL.CMD_STATE, 'done');
-                __gr.update();
-			return;
-		    default:
-			gs.warn(__msgPrefix + 'Unknown session command: ' + command);
-			__result = 'Unknown command: ' + command;
-		    }
-		} else {
-		    gs.info(__msgPrefix + 'Processing command: ' + command);
-
-                    try {
-	//		__result = GlideEvaluator.evaluateString(command);
-			__result = __gse.evaluateScript(__gr, SnREPL.CMD_COMMAND);
-			//		    var script = "(function() { return " + __gr.getValue('u_command') + " })();";
-			//			__gr.getValue('u_command');
-			//		    __result = eval(script);
-                    } catch (e) {
-			gs.warn(__msgPrefix + 'Error: ' + e.message);
-			__result = e.message;
+                        gr.setValue(SnREPL.CMD_RESULT, JSON.stringify({
+                            replMsg: 'Session terminated'
+                        }));
+                        
+                        gr.setValue(SnREPL.CMD_STATE, 'done');
+                        gr.update();
+                        return;
+                    default:
+                        gs.warn(msgPrefix + 'Unknown session command: ' + command);
+                        result = 'Unknown command: ' + command;
                     }
-		}
-		
+                } else {
+                    gs.info(msgPrefix + 'Processing command: ' + command);
+                    try {
+                        SnREPL.runCommand.call(env, gr);
+                    } catch (e) {
+                        gs.warn(msgPrefix + 'Error: ' + e.message);
+                        result = e.message;
+                    }
+                }
 
-		var response = {
-		    result: __result,
-		    printLog: __printLog
-		}
+                var response = {
+                    result: env.__result,
+                    printLog: env.__printLog
+                }
 
-                __gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(response));
-                __gr.setValue(SnREPL.CMD_STATE, 'done');
-                __gr.update();
-		__delay = SnREPL.WORKER_MIN_DELAY;
-		__inactiveTimer.start();
-            } else if (__delay < SnREPL.WORKER_MAX_DELAY) {
-		__delay += SnREPL.WORKER_LAYOFF_DELAY;
-	    }
+                gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(response));
+                gr.setValue(SnREPL.CMD_STATE, 'done');
+                gr.update();
+                delay = SnREPL.WORKER_MIN_DELAY;
+                inactiveTimer.start();
+            } else if (delay < SnREPL.WORKER_MAX_DELAY) {
+                delay += SnREPL.WORKER_LAYOFF_DELAY;
+            }
 
-            gs.sleep(__delay);
+            gs.sleep(delay);
         }
 
-	// Session has been inactive for too long, clean up
-	sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
-	gs.info('SnREPL: Session ' + sessionGr.getDisplayValue() + ' has been inactive for too long, suspending.');
+        // Session has been inactive for too long, clean up
+        sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
+        gs.info('SnREPL: Session ' + sessionGr.getDisplayValue() + ' has been inactive for too long, suspending.');
+    },
+
+    /**
+     * Runs the given command in a limited environment, where
+     * we also intercept calls to gs.print and console.log.
+     *
+     * @param {GlideRecord} commandGr the command record
+     * @modifies this
+     */
+    runCommand: function(commandGr) {
+        var __printLog = [];
+
+        // Intercept calls to gs.print and console.log
+        var __gsWrapper = Object.create(gs);
+        __gsWrapper.print = function(msg) {
+            __printLog.push(String(msg));
+        };
+        var __vars = {
+            console: {
+                log : function(msg) {
+                    __printLog.push(String(msg));
+                }
+            },
+            gs: __gsWrapper
+        };
+
+        var __gse = new GlideScopedEvaluator();
+        for (var key in __vars) {
+            __gse.putVariable(key, __vars[key]);
+        }
+
+        this.__result = __gse.evaluateScript(commandGr, SnREPL.CMD_COMMAND);
+        this.__printLog = __printLog;
+    },
+
+    /**
+        * Terminates the given session.
+        *
+        * This will set the session state to 'inactive' and
+        * terminate the session process.
+        *
+        * @param {GlideRecord} sessionGr the session record
+        */
+    terminateSession: function(sessionGr) {
+        gs.info('SnREPL: Terminating session ' + sessionGr.getDisplayValue());
+        var gr = new GlideRecord(SnREPL.CMD_TABLE);
+        gr.newRecord();
+        gr.setValue(SnREPL.CMD_STATE, 'new');
+        gr.setValue(SnREPL.CMD_COMMAND, '\\exit');
+        gr.setValue(SnREPL.CMD_SESSION, sessionGr.getUniqueValue());
+        gr.insert();
     },
 
 
@@ -275,13 +354,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>19</sys_mod_count>
+        <sys_mod_count>46</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-11 05:25:36</sys_updated_on>
+        <sys_updated_on>2024-06-11 14:43:11</sys_updated_on>
     </sys_script_include>
 </record_update>

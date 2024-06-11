@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?><database>
     <element db_object_id="de80a77793224210bcf170718bba10c7" label="snREPL Command" max_length="40" name="u_snrepl_command" type="collection">
-        <element attributes="edge_encryption_enabled=true" label="Result" max_length="40" name="u_result" type="string"/>
+        <element attributes="edge_encryption_enabled=true" label="Result" max_length="32767" name="u_result" type="string"/>
         <element attributes="edge_encryption_enabled=true" choice="1" label="State" max_length="40" name="u_state" type="string">
             <choice>
                 <element inactive_on_update="false" label="Done" sequence="1" value="done"/>
