@@ -203,11 +203,21 @@ var SnREPL = {
         var delay = SnREPL.WORKER_MIN_DELAY;
         var msgPrefix = 'SnREPL[' + sessionGr.getDisplayValue() + ']: ';
 
-        // limited environment for command execution
-        var env = {
-            __printLog: [],
-            __msgPrefix: msgPrefix
+        var commandResponse = {
+            result: '',
+            printLog: [],
+            status: 'unknown',
+            replMessage: '',
         };
+
+        // environment set up
+        console = {
+            log: SnREPL._logWrapper.bind(commandResponse)
+        };
+        var sleep = gs.sleep.bind(gs);
+        gs = Object.create(gs);
+        gs.print = console.log;
+        gs.sleep = sleep;
 
         while (inactiveTimer.getTime() < SnREPL.SESSION_IDLE_TIMEOUT * 1000) {
             var gr = new GlideRecord(SnREPL.CMD_TABLE);
@@ -218,8 +228,10 @@ var SnREPL = {
 
             if (gr.next()) {
                 var command = gr.getValue(SnREPL.CMD_COMMAND);
-                var result = null;
-                var status = null
+                commandResponse.result = '';
+                commandResponse.printLog = [];
+                commandResponse.status = 'unknown';
+                commandResponse.replMessage = '';
 
                 if (command.startsWith('#')) {
                     command = command.substring(1);
@@ -232,7 +244,8 @@ var SnREPL = {
                         sessionGr.update();
 
                         gr.setValue(SnREPL.CMD_RESULT, JSON.stringify({
-                            replMsg: 'Session terminated'
+                            replMsg: 'Session terminated',
+                            status: 'success'
                         }));
                         
                         gr.setValue(SnREPL.CMD_STATE, 'done');
@@ -240,31 +253,28 @@ var SnREPL = {
                         return;
                     default:
                         gs.warn(msgPrefix + 'Unknown session command: ' + command);
-                        result = 'Unknown command: ' + command;
+                        commandResponse.replMsg = 'Unknown command: ' + command;
+                        commandResponse.status = 'error';
                     }
                 } else {
                     gs.info(msgPrefix + 'Processing command: ' + command);
                     try {
-                        result = SnREPL.runCommand.call(env, gr);
-                        status = 'success';
+                        // use indirect eval to maintain global scope
+                        commandResponse.result = (0, eval)(command);
+                        commandResponse.status = 'success';
                     } catch (e) {
                         gs.warn(msgPrefix + 'Error: ' + e.message);
-                        result = e.message;
-                        status = 'exception';
+                        commandResponse.result = e.message;
+                        commandResponse.status = 'exception';
                     }
                 }
 
+                // TODO serialization might be adjustable
                 if (typeof result == 'object') {
-                    result = JSON.stringify(result);
+                    commandResponse.result = JSON.stringify(result);
                 }
 
-                var response = {
-                    result: result,
-                    printLog: env.__printLog,
-                    status: status
-                }
-
-                gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(response));
+                gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(commandResponse));
                 gr.setValue(SnREPL.CMD_STATE, 'done');
                 gr.update();
                 delay = SnREPL.WORKER_MIN_DELAY;
@@ -283,53 +293,29 @@ var SnREPL = {
     },
 
     /**
-     * Runs the given command in a limited environment, where
-     * we also intercept calls to gs.print and console.log.
+     * Wrapper for gs.print and console.log.
      *
-     * @param {GlideRecord} commandGr the command record
-     * @returns {any} the result of the command
+     * This function will intercept calls to gs.print and console.log
+     * and store the messages in a log array.
+     *
+     * @param {string} msg the message to log
+     * @param {any} [args] additional arguments
      * @modifies this
      */
-    runCommand: function(commandGr) {
-        var __printLog = [];
+    _logWrapper: function(msg) {
+        var now = new GlideDateTime();
 
-        // Intercept calls to gs.print and console.log
-        function logWrapper(msg) {
-            var now = new GlideDateTime();
-            __printLog.push({
-                timestamp: now.getDisplayValue(),
-                message: String(msg)
-            });
-        }
-        var __gsWrapper = Object.create(gs);
-        __gsWrapper.print = logWrapper; 
-        __gsWrapper.sleep = gs.sleep.bind(gs);
-
-        var __vars = {
-            console: {
-                log : logWrapper
-            },
-            gs: __gsWrapper
-        };
-
-        // Bug in GlideScopedEvaluator (cannot catch exceptions)
-        /*var __gse = new GlideScopedEvaluator();
-        for (var key in __vars) {
-            __gse.putVariable(key, __vars[key]);
+        // if there are additional arguments, append them to the message
+        if (arguments.length > 1) {
+            msg = msg + ' ' + Array.prototype.slice.call(arguments, 1).join(' ');
         }
 
-        this.__retval = __gse.evaluateScript(commandGr, SnREPL.CMD_COMMAND);
-        */
-
-
-        // So we use eval for now
-        console = __vars.console;
-        gs = __vars.gs;
-        
-        this.__printLog = __printLog;
-        return eval(commandGr.getValue(SnREPL.CMD_COMMAND));
+        this.printLog.push({
+            timestamp: now.getDisplayValue(),
+            message: String(msg)
+        });
     },
-
+    
     /**
      * Terminates the given session.
      *
@@ -356,13 +342,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>61</sys_mod_count>
+        <sys_mod_count>68</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-13 19:47:17</sys_updated_on>
+        <sys_updated_on>2024-06-16 12:57:50</sys_updated_on>
     </sys_script_include>
 </record_update>
