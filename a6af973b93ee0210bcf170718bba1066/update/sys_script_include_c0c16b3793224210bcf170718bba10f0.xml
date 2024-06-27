@@ -16,9 +16,9 @@ var SnREPL = {
     COMMAND_POLL_INTERVAL : 250,          // polling interval in ms
     COMMAND_TIMEOUT       : 15,           // timeout in seconds
 
-    WORKER_MIN_DELAY      : 200,          // worker minimum delay in ms
+    WORKER_MIN_DELAY      : 150,          // worker minimum delay in ms
     WORKER_MAX_DELAY      : 15000,        // worker maximum delay in ms
-    WORKER_LAYOFF_DELAY   : 10,           // worker layoff delay in ms
+    WORKER_LAYOFF_DELAY   : 5,           // worker layoff delay in ms
 
     // Table and field names for the command queue
     CMD_TABLE             : 'u_snrepl_command',
@@ -260,18 +260,13 @@ var SnREPL = {
                     gs.info(msgPrefix + 'Processing command: ' + command);
                     try {
                         // use indirect eval to maintain global scope
-                        commandResponse.result = (0, eval)(command);
+                        commandResponse.result = JSON.stringify((0, eval)(command));
                         commandResponse.status = 'success';
                     } catch (e) {
                         gs.warn(msgPrefix + 'Error: ' + e.message);
                         commandResponse.result = e.message;
                         commandResponse.status = 'exception';
                     }
-                }
-
-                // TODO serialization might be adjustable
-                if (typeof result == 'object') {
-                    commandResponse.result = JSON.stringify(result);
                 }
 
                 gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(commandResponse));
@@ -342,13 +337,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>68</sys_mod_count>
+        <sys_mod_count>74</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-16 12:57:50</sys_updated_on>
+        <sys_updated_on>2024-06-27 06:58:42</sys_updated_on>
     </sys_script_include>
 </record_update>
