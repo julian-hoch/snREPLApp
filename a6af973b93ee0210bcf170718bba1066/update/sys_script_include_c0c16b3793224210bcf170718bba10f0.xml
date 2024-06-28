@@ -202,6 +202,7 @@ var SnREPL = {
         var inactiveTimer = new GlideStopWatch();
         var delay = SnREPL.WORKER_MIN_DELAY;
         var msgPrefix = 'SnREPL[' + sessionGr.getDisplayValue() + ']: ';
+	var useMagicVariables = true;
 
         var commandResponse = {
             result: '',
@@ -214,10 +215,20 @@ var SnREPL = {
         console = {
             log: SnREPL._logWrapper.bind(commandResponse)
         };
-        var sleep = gs.sleep.bind(gs);
+
+	// set up gs proxy to wrap gs.print calls
         gs = Object.create(gs);
+	for (var key in gs) {
+	    if (typeof gs[key] === 'function') {
+		gs[key] = gs[key].bind(gs);
+	    }
+	}
         gs.print = console.log;
-        gs.sleep = sleep;
+
+	// global magic variables
+	if (useMagicVariables) {
+	    $$0=$0=$1=$2=$3=$4=$5=$6=$7=$8=$9=null;
+	}
 
         while (inactiveTimer.getTime() < SnREPL.SESSION_IDLE_TIMEOUT * 1000) {
             var gr = new GlideRecord(SnREPL.CMD_TABLE);
@@ -257,34 +268,49 @@ var SnREPL = {
                         commandResponse.status = 'error';
                     }
                 } else {
-                    gs.info(msgPrefix + 'Processing command: ' + command);
-                    try {
-                        // use indirect eval to maintain global scope
-                        commandResponse.result = JSON.stringify((0, eval)(command));
-                        commandResponse.status = 'success';
-                    } catch (e) {
-                        gs.warn(msgPrefix + 'Error: ' + e.message);
-                        commandResponse.result = e.message;
-                        commandResponse.status = 'exception';
-                    }
-                }
+                    gs.info(msgPrefix + 'Running command: ' + command);
 
-                gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(commandResponse));
-                gr.setValue(SnREPL.CMD_STATE, 'done');
-                gr.update();
-                delay = SnREPL.WORKER_MIN_DELAY;
-                inactiveTimer.start();
+		    try {
+			// use indirect eval to maintain global scope
+			var r = (0, eval)(command);
+			gs.info(msgPrefix + 'Result: ' + r);
+
+			if (useMagicVariables) {
+			    $9=$8;$8=$7;$7=$6;$6=$5;$5=$4;$4=$3;$3=$2;$2=$1;$1=$0;
+			    $0=r;
+			}
+
+			// todo potentially (optionally) use Xplore to format the result
+			try {
+			    commandResponse.result = JSON.stringify(r);
+			} catch (e) {
+			    commandResponse.result = String(r);
+			}
+
+			commandResponse.status = 'success';
+                    } catch (e) {
+			gs.warn(msgPrefix + 'Error: ' + e.message);
+			commandResponse.result = e.message;
+			commandResponse.status = 'exception';
+                    }
+		}
+
+		gr.setValue(SnREPL.CMD_RESULT, JSON.stringify(commandResponse));
+		gr.setValue(SnREPL.CMD_STATE, 'done');
+		gr.update();
+		delay = SnREPL.WORKER_MIN_DELAY;
+		inactiveTimer.start();
             } else if (delay < SnREPL.WORKER_MAX_DELAY) {
-                delay += SnREPL.WORKER_LAYOFF_DELAY;
+		delay += SnREPL.WORKER_LAYOFF_DELAY;
             }
 
             gs.sleep(delay);
-        }
+	}
 
-        // Session has been inactive for too long, clean up
-        sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
-        sessionGr.update();
-        gs.info('SnREPL: Session ' + sessionGr.getDisplayValue() + ' has been inactive for too long, suspending.');
+	// Session has been inactive for too long, clean up
+	sessionGr.setValue(SnREPL.SESSION_STATE, 'inactive');
+	sessionGr.update();
+	gs.info('SnREPL: Session ' + sessionGr.getDisplayValue() + ' has been inactive for too long, suspending.');
     },
 
     /**
@@ -310,7 +336,7 @@ var SnREPL = {
             message: String(msg)
         });
     },
-    
+
     /**
      * Terminates the given session.
      *
@@ -337,13 +363,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>74</sys_mod_count>
+        <sys_mod_count>86</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-27 06:58:42</sys_updated_on>
+        <sys_updated_on>2024-06-28 05:35:23</sys_updated_on>
     </sys_script_include>
 </record_update>
