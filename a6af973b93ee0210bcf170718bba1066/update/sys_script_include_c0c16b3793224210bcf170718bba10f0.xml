@@ -13,12 +13,12 @@
  */
 var SnREPL = {
 
-    COMMAND_POLL_INTERVAL : 250,          // polling interval in ms
-    COMMAND_TIMEOUT       : 15,           // timeout in seconds
+    COMMAND_POLL_INTERVAL : 250,        // polling interval in ms
+    COMMAND_TIMEOUT       : 15,         // timeout in seconds
 
-    WORKER_MIN_DELAY      : 150,          // worker minimum delay in ms
-    WORKER_MAX_DELAY      : 15000,        // worker maximum delay in ms
-    WORKER_LAYOFF_DELAY   : 5,           // worker layoff delay in ms
+    WORKER_MIN_DELAY      : 150,        // worker minimum delay in ms
+    WORKER_MAX_DELAY      : 15000,      // worker maximum delay in ms
+    WORKER_LAYOFF_DELAY   : 5,          // worker layoff delay in ms
 
     // Table and field names for the command queue
     CMD_TABLE             : 'u_snrepl_command',
@@ -68,6 +68,19 @@ var SnREPL = {
     },
 
     /**
+     * Helper function to get a boolean query parameter.
+     *
+     * @param {RESTAPIRequest} request The incoming request
+     * @param {string} name The name of the query parameter
+     * @returns {boolean} the value of the query parameter
+     */
+    _getBoolQueryParam: function(request, name) {
+	return (request.queryParams[name] &&
+		request.queryParams[name].length &&
+		request.queryParams[name][0] == 'true');
+    },
+
+    /**
      * Handles request to list all active sessions.
      *
      * @param {RESTAPIRequest} request The incoming request
@@ -75,7 +88,16 @@ var SnREPL = {
      * @modifies response
      */
     listSessions: function(request, response) {
+	var all = SnREPL._getBoolQueryParam(request, 'all');
+	gs.info('SnREPL: Listing sessions. QueryParam: ' + JSON.stringify(request.queryParams));
+	gs.info('SnREPL: Listing sessions. PathParams: ' + JSON.stringify(request.pathParams));
+	gs.info('SnREPL: Listing sessions. All: ' + all);
+
         var gr = new GlideRecord(SnREPL.SESSION_TABLE);
+	if (!all) {
+	    gr.addQuery('u_state', 'live');
+	}
+	gs.info('SnREPL: Querying sessions, query: ' + gr.getEncodedQuery());
         gr.query();
         var sessions = [];
         while (gr.next()) {
@@ -150,8 +172,12 @@ var SnREPL = {
 
         // return timeout message and command ID for result polling
         response = {
-            result: 'timeout',
-            command: cid
+            result: JSON.stringify({
+		replMsg: 'Command timed out',
+		status: 'timeout',
+		result: '',
+		printLog: []
+	    }),
         };
 
         return response;
@@ -204,6 +230,8 @@ var SnREPL = {
         var msgPrefix = 'SnREPL[' + sessionGr.getDisplayValue() + ']: ';
 	var useMagicVariables = true;
 
+	gs.info(msgPrefix + 'Starting session worker');
+
         var commandResponse = {
             result: '',
             printLog: [],
@@ -211,25 +239,30 @@ var SnREPL = {
             replMessage: '',
         };
 
+	gs.info(msgPrefix + 'Initializing environment');
+
         // environment set up
         console = {
             log: SnREPL._logWrapper.bind(commandResponse)
         };
 
+	gs.info(msgPrefix + 'Setting up gs proxy');
+
 	// set up gs proxy to wrap gs.print calls
+	var _sleep = gs.sleep.bind(gs);
+	var _getProperty = gs.getProperty.bind(gs);
         gs = Object.create(gs);
-	for (var key in gs) {
-	    if (typeof gs[key] === 'function') {
-		gs[key] = gs[key].bind(gs);
-	    }
-	}
         gs.print = console.log;
+	gs.sleep = _sleep;
+	gs.getProperty = _getProperty;
 
 	// global magic variables
 	if (useMagicVariables) {
+	    gs.info(msgPrefix + 'Setting up magic variables');
 	    $$0=$0=$1=$2=$3=$4=$5=$6=$7=$8=$9=null;
 	}
 
+	gs.info(msgPrefix + 'Entering command loop');
         while (inactiveTimer.getTime() < SnREPL.SESSION_IDLE_TIMEOUT * 1000) {
             var gr = new GlideRecord(SnREPL.CMD_TABLE);
             gr.addQuery(SnREPL.CMD_SESSION, sessionGr.getUniqueValue());
@@ -363,13 +396,13 @@ var SnREPL = {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 19:09:20</sys_created_on>
         <sys_id>c0c16b3793224210bcf170718bba10f0</sys_id>
-        <sys_mod_count>86</sys_mod_count>
+        <sys_mod_count>98</sys_mod_count>
         <sys_name>SnREPL</sys_name>
         <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
         <sys_policy/>
         <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
         <sys_update_name>sys_script_include_c0c16b3793224210bcf170718bba10f0</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-06-28 05:35:23</sys_updated_on>
+        <sys_updated_on>2024-06-30 15:38:34</sys_updated_on>
     </sys_script_include>
 </record_update>
