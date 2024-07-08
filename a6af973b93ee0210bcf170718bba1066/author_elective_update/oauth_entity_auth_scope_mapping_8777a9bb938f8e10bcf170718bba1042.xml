@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="oauth_entity_auth_scope_mapping">
+    <oauth_entity_auth_scope_mapping action="DELETE">
+        <auth_scope display_value="snREPL scope">72b7e9ff938f8e10bcf170718bba1004</auth_scope>
+        <oauth_entity display_value="snREPL">29b5d886938f4610bcf170718bba1093</oauth_entity>
+        <sys_class_name>oauth_entity_auth_scope_mapping</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2024-07-04 06:46:56</sys_created_on>
+        <sys_id>8777a9bb938f8e10bcf170718bba1042</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name/>
+        <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
+        <sys_update_name>oauth_entity_auth_scope_mapping_8777a9bb938f8e10bcf170718bba1042</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2024-07-04 06:46:56</sys_updated_on>
+    </oauth_entity_auth_scope_mapping>
+    <sys_update_version action="INSERT_OR_UPDATE">
+        <action>DELETE</action>
+        <application display_value="snREPL">a6af973b93ee0210bcf170718bba1066</application>
+        <file_path/>
+        <instance_id>1e00c1971b9eb5506a85eb9b2d4bcb03</instance_id>
+        <instance_name>dev209562</instance_name>
+        <name>oauth_entity_auth_scope_mapping_8777a9bb938f8e10bcf170718bba1042</name>
+        <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="oauth_entity_auth_scope_mapping"><oauth_entity_auth_scope_mapping action="INSERT_OR_UPDATE"><auth_scope display_value="snREPL scope">72b7e9ff938f8e10bcf170718bba1004</auth_scope><oauth_entity display_value="snREPL">29b5d886938f4610bcf170718bba1093</oauth_entity><sys_class_name>oauth_entity_auth_scope_mapping</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2024-07-04 06:46:56</sys_created_on><sys_id>8777a9bb938f8e10bcf170718bba1042</sys_id><sys_mod_count>0</sys_mod_count><sys_name/><sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package><sys_policy/><sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope><sys_update_name>oauth_entity_auth_scope_mapping_8777a9bb938f8e10bcf170718bba1042</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2024-07-04 06:46:56</sys_updated_on></oauth_entity_auth_scope_mapping></record_update>]]></payload>
+        <payload_hash>1797632098</payload_hash>
+        <record_name/>
+        <reverted_from/>
+        <source>4891a7b793224210bcf170718bba105d</source>
+        <source_table>sys_update_set</source_table>
+        <state>previous</state>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2024-07-04 06:46:56</sys_created_on>
+        <sys_id>29d7697f938f8e10bcf170718bba1068</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_recorded_at>1907c7f02b40000001</sys_recorded_at>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2024-07-04 06:46:56</sys_updated_on>
+        <type>Auth Scopes</type>
+        <update_guid>2dd7697fdc8f8e1082a701eeb6289367</update_guid>
+        <update_guid_history>2dd7697fdc8f8e1082a701eeb6289367:1797632098</update_guid_history>
+    </sys_update_version>
+    <sys_metadata_delete action="INSERT_OR_UPDATE">
+        <sys_audit_delete display_value="">cb48297393cf8e10bcf170718bba10f9</sys_audit_delete>
+        <sys_class_name>sys_metadata_delete</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2024-07-04 06:48:57</sys_created_on>
+        <sys_db_object display_value="" name="oauth_entity_auth_scope_mapping">oauth_entity_auth_scope_mapping</sys_db_object>
+        <sys_id>5df6c6f624a4419895cc2ab238555d84</sys_id>
+        <sys_metadata>8777a9bb938f8e10bcf170718bba1042</sys_metadata>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name/>
+        <sys_package display_value="snREPL" source="a6af973b93ee0210bcf170718bba1066">a6af973b93ee0210bcf170718bba1066</sys_package>
+        <sys_parent/>
+        <sys_policy/>
+        <sys_scope display_value="snREPL">a6af973b93ee0210bcf170718bba1066</sys_scope>
+        <sys_scope_delete display_value="">3968940e06b04dbc9e6b39145d9a5210</sys_scope_delete>
+        <sys_update_name>oauth_entity_auth_scope_mapping_8777a9bb938f8e10bcf170718bba1042</sys_update_name>
+        <sys_update_version display_value="oauth_entity_auth_scope_mapping_8777a9bb938f8e10bcf170718bba1042">29d7697f938f8e10bcf170718bba1068</sys_update_version>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2024-07-04 06:48:57</sys_updated_on>
+    </sys_metadata_delete>
+</record_update>
