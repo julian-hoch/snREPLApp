@@ -32,16 +32,16 @@
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2024-06-09 18:59:04</sys_created_on>
         <sys_id>a6af973b93ee0210bcf170718bba1066</sys_id>
-        <sys_mod_count>6</sys_mod_count>
+        <sys_mod_count>7</sys_mod_count>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2024-07-08 12:06:39</sys_updated_on>
+        <sys_updated_on>2025-04-28 20:25:56</sys_updated_on>
         <template/>
         <trackable>true</trackable>
         <uninstall_blocked>false</uninstall_blocked>
         <user_role display_value="admin" name="admin">2831a114c611228501d4ea6c309d626d</user_role>
         <vendor/>
         <vendor_prefix/>
-        <version>1.0.3</version>
+        <version>1.0.4</version>
     </sys_app>
     <sys_translated_text action="delete_multiple" query="documentkey=a6af973b93ee0210bcf170718bba1066"/>
     <sys_attachment action="INSERT_OR_UPDATE">
